@@ -21,6 +21,9 @@ parser = argparse.ArgumentParser(description='Process some integers.')
 parser.add_argument('in_file', action="store")
 group = parser.add_mutually_exclusive_group()
 group.add_argument('--build-cache', '-b', action="store_true", dest="build_cache")
+cache_group = parser.add_mutually_exclusive_group()
+#cache_group.add_argument('--cache-src', '-s', action="store_true", dest="cache_src")
+#parser.add_argument('--cache-src', required='--build_cache' in sys.argv, action="store", dest="cache_src")
 group.add_argument('-a', action="store_true", dest="apply_cache")
 group.add_argument('--print-test', '-p', action="store_true", dest="print_test")
 parser.add_argument('-o', action="store", dest="out_file")
@@ -123,6 +126,15 @@ def add_chord_stat(root, atop, stem_dir, has_beam,pos):
 		Chords[root] = {}
 	if not atop in Chords[root]:
 		Chords[root][atop] = {}
+	if atop == 'None':
+		Chords[root]['None']
+		if not pos[0] in Chords[root]['None']['x']:
+			Chords[root]['None']['x'][pos[0]] = 0
+		if not pos[1] in Chords[root]['None']['y']:
+			Chords[root]['None']['y'][pos[1]] = 0
+		Chords[root]['None']['x'][pos[0]] += 1
+		Chords[root]['None']['y'][pos[1]] += 1
+		return
 	if not stem_dir in Chords[root][atop]:
 		Chords[root][atop][stem_dir] = {}
 	if not has_beam in Chords[root][atop][stem_dir]:
@@ -178,7 +190,7 @@ def extract_measure_data(m):
 			targ_chord = child.root.text
 			if hasattr(child, 'name'):
 				targ_chord += ':' + child.name.text
-			targ_pos = ('0.0', '-2.5')
+			targ_pos = ('-0.5', '-1.5')
 			if hasattr(child, 'pos'):
 				targ_pos = (child.pos.attrib['x'], child.pos.attrib['y'])
 			if in_a_tick:
@@ -190,14 +202,22 @@ def extract_measure_data(m):
 						break
 			print "Chords[%s][%s][%s][%s][%s] = " % (targ_chord, current_note[0], current_note[3], current_note[2], targ_pos[1])
 			#l_dec = sorted(Decimal(c) for c in Chords[targ_chord][current_note[0]][current_note[3]][current_note[2]])
-			myt_x = Chords[targ_chord][current_note[0]][current_note[3]][current_note[2]]['x']
-			myt_y = Chords[targ_chord][current_note[0]][current_note[3]][current_note[2]]['y']
-			dec_list_x = {Decimal(key): value for (key,value) in myt_x.iteritems()}
-			dec_list_y = {Decimal(key): value for (key,value) in myt_y.iteritems()}
-			#print myt
-			#print dec_list
-			new_x = sorted(dec_list_x, key=dec_list_x.get, reverse=True)[0]
-			new_y = sorted(dec_list_y, key=dec_list_y.get, reverse=True)[0]
+
+			try:
+				if current_note == 'None':
+					myt_x = Chords[targ_chord]['None']['x']
+					myt_y = Chords[targ_chord]['None']['y']
+				else:
+					myt_x = Chords[targ_chord][current_note[0]][current_note[3]][current_note[2]]['x']
+					myt_y = Chords[targ_chord][current_note[0]][current_note[3]][current_note[2]]['y']
+				dec_list_x = {Decimal(key): value for (key,value) in myt_x.iteritems()}
+				dec_list_y = {Decimal(key): value for (key,value) in myt_y.iteritems()}
+				new_x = sorted(dec_list_x, key=dec_list_x.get, reverse=True)[0]
+				new_y = sorted(dec_list_y, key=dec_list_y.get, reverse=True)[0]
+			except:
+				sys.stderr.write('error applying\n')
+				new_x = -0.5
+				new_y = -1.5
 			if hasattr(child, 'pos'):
 				child.pos.attrib['x'] = str(new_x)
 				child.pos.attrib['y'] = str(new_y)
@@ -316,49 +336,88 @@ elif opts.build_cache:
 	pickle.dump( Chords, open( "db.pickle", "wb" ) )
 elif opts.apply_cache:
 	Chords = pickle.load( open( "db.pickle", "rb" ))
-	xml_file = objectify.parse(in_file)
-	h = xml_file.xpath('/museScore')[0]
-	#print h
-	measures = h.Score.Staff.Measure
-	for m in measures:
-		extract_measure_data(m)
-		#except:
-		#	print "fail"
-			#print pretty(Chords)
-	print 'saving'
-	new_tostring = etree.tostring(xml_file,pretty_print=True,xml_declaration=True, encoding='UTF-8')
-	#after_pretty = objectify.fromstring(new_tostring)
-	#print after_pretty[0].getroot()
-	after_pretty = etree.fromstring(new_tostring)
-	h = after_pretty.xpath('/museScore')[0]
-	lines_to_correct = []
-	final_lines = []
-	for text in h.xpath('Score/Staff/VBox/Text'):
-		#print etree.tostring(text.xpath('text')[0])
-		#init_src = text.text.sourceline
+	if os.path.isdir(in_file):
+		for file in os.listdir(in_file):
+			full_path = os.path.join(in_file, file)
+			try:
+				if os.path.isdir(full_path) or not file.endswith('.mscx'):
+					continue
+				else:
+					xml_file = objectify.parse(full_path)
+					h = xml_file.xpath('/museScore')[0]
+					measures = h.Score.Staff.Measure
 
-		#lfdsf
-		print etree.tostring(text.xpath('text')[0]).replace('\n','')
-		# endline_num = init_src + (len(etree.tostring(text.text).strip().split()) - 1)
-		# if text.Style.text == "Title":
-		# 	lines_to_correct[0] = (init_src, endline_num)
-		# 	final_lines[0] = etree.tostring(text.xpath('text')[0])
-		# elif text.Style.text == "Subtitle":
-		# 	lines_to_correct[1] = (init_src, endline_num)
-		# 	final_lines[1] = etree.tostring(text.xpath('text')[0])
-	#splitted = new_tostring.split('\n')
+					for m in measures:
+						extract_measure_data(m)
+					old = os.dup(1)
+					os.close(1)
+					os.open(os.path.join(out_file, file), os.O_WRONLY|os.O_CREAT)
 
-	#for i in xrange(endline_num-init_src):
+					print '<?xml version="1.0" encoding="UTF-8"?>'
+					#current_score = etree.parse(in_file)
+					serialize_xml(xml_file.getroot())
+					os.close(1)
+					os.dup(old)
+					os.close(old)
+			except:
+				print "error in file %s" % (full_path)
+	else:
 
-	#for line in xrange(len(splitted)):
+		xml_file = objectify.parse(in_file)
+		h = xml_file.xpath('/museScore')[0]
+		#print h
+		measures = h.Score.Staff.Measure
+		for m in measures:
+			extract_measure_data(m)
+			#except:
+			#	print "fail"
+				#print pretty(Chords)
+		#print 'saving'
+		#new_tostring = etree.tostring(xml_file,pretty_print=True,xml_declaration=True, encoding='UTF-8')
+		#after_pretty = objectify.fromstring(new_tostring)
+		#print after_pretty[0].getroot()
+		#after_pretty = etree.fromstring(new_tostring)
+		#h = after_pretty.xpath('/museScore')[0]
+		#lines_to_correct = []
+		#final_lines = []
+		#for text in h.xpath('Score/Staff/VBox/Text'):
+			#print etree.tostring(text.xpath('text')[0])
+			#init_src = text.text.sourceline
 
-	print init_src, endline_num
-	sys.exit(0)
-	with open("TestPrimeiro.mscx", 'wb') as doc:
-	#xml_file.write_c14n("TestPrimeiro.mscx")
-		#xml_file.write(doc, xml_declaration=True, encoding='UTF-8')
-		doc.write(etree.tostring(xml_file, pretty_print = True))
-	sys.exit(0)
+			#lfdsf
+			#print etree.tostring(text.xpath('text')[0]).replace('\n','')
+			# endline_num = init_src + (len(etree.tostring(text.text).strip().split()) - 1)
+			# if text.Style.text == "Title":
+			# 	lines_to_correct[0] = (init_src, endline_num)
+			# 	final_lines[0] = etree.tostring(text.xpath('text')[0])
+			# elif text.Style.text == "Subtitle":
+			# 	lines_to_correct[1] = (init_src, endline_num)
+			# 	final_lines[1] = etree.tostring(text.xpath('text')[0])
+		#splitted = new_tostring.split('\n')
+
+		#for i in xrange(endline_num-init_src):
+
+		#for line in xrange(len(splitted)):
+
+		#print init_src, endline_num
+		#sys.exit(0)
+		print 'opening out_file = %s' % (out_file)
+		old = os.dup(1)
+		os.close(1)
+
+		os.open(out_file, os.O_WRONLY|os.O_CREAT)
+
+		print '<?xml version="1.0" encoding="UTF-8"?>'
+		#current_score = etree.parse(in_file)
+		serialize_xml(xml_file.getroot())
+		os.close(1)
+		os.dup(old)
+		os.close(old)
+		#with open(out_file, 'wb') as doc:
+		#xml_file.write_c14n("TestPrimeiro.mscx")
+			#xml_file.write(doc, xml_declaration=True, encoding='UTF-8')
+			#doc.write(etree.tostring(xml_file, pretty_print = True))
+		sys.exit(0)
 print in_file, out_file
 
 #print pretty(Chords)

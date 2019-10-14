@@ -13,7 +13,7 @@ def get_targ_list(filename="targs.txt"):
 def load_targets(target_list):
 	global other_songs
 	for file in target_list:
-		root = etree.parse('/home/stel/Documents/MuseScore2/Scores/Alfredo/' + file)
+		root = etree.parse('/home/stel/Documents/MuseScore2/Scores/ICEFLU/Alex/newer/fixed/' + file)
 		other_songs.append(deepcopy(root.xpath('/museScore/Score/Staff')[0]))
 
 def get_last_measure(targ_file):
@@ -116,10 +116,48 @@ def stringify_timesig(timesig):
 other_songs = []
 lines = get_targ_list()
 load_targets(lines)
-targ_file = etree.parse(r'/home/stel/Documents/MuseScore2/Scores/Alfredo/096_Am.mscx')
+targ_file = etree.parse(r'/home/stel/Documents/MuseScore2/Scores/ICEFLU/Alex/newer/fixed/I_C.mscx')
 
 num_measures = len(get_measures(other_songs[0]))+1
-for cur_index in xrange(1, len(lines)):
+
+def serialize_xml(et, indent=0):
+	#create new tag
+	sys.stdout.write(('\t'*indent).encode('utf-8'))
+	#print 'lol'
+	new_tag = etree.fromstring('<%s/>' % et.tag)
+	for a in et.attrib.keys():
+		new_tag.attrib[a] = et.attrib[a]
+	new_tag = etree.tostring(new_tag)
+	num_child = len(et.getchildren())
+
+	autoclose_tag = et.text == None
+	has_text = len(et.text) > 0 if not autoclose_tag else False
+	has_child = num_child > 0
+
+	if num_child > 0 or (has_text or (not autoclose_tag and not has_child)):
+		new_tag = new_tag[:len(new_tag) - 2] + '>'
+	else:
+		new_tag = new_tag[:len(new_tag) - 2] + '/>'
+
+	if (not has_child) and has_text:
+		#print '%s not has_child and has_text indent: %d' % (et.tag, indent)
+		sys.stdout.write(new_tag.encode('utf-8'))
+	else:
+		#print '%s has_child and has_text indent: %d' % (et.tag, indent)
+		print new_tag
+
+	if not autoclose_tag and len(et.text.strip()) > 0:
+		sys.stdout.write(et.text.encode('utf-8'))
+	for element in et.iterchildren():
+		if element.tag == 'text':
+			print ('\t'*(indent + 1)) + etree.tostring(element).strip()
+		else:
+			serialize_xml(element, indent + 1)
+	if has_child:
+		print ('\t'*(indent)) + '</%s>' % et.tag
+	elif has_text:
+		print '</%s>' % et.tag
+for cur_index in xrange(0, len(lines)):
 	cur_score = other_songs[cur_index]
 	normalize_last_measure(cur_score)
 
@@ -148,8 +186,11 @@ for cur_index in xrange(1, len(lines)):
 	#left_over -= len(deepcopy(lines)[len(lines[:10]):][:10])
 	#if cur_index == 8:
 	#	break
-with open("ResultAlfredo.mscx", 'wb') as doc:
-	doc.write(etree.tostring(targ_file, pretty_print = True,xml_declaration=True,))
-print "algo"
+#with open("ResultGlauco.mscx", 'wb') as doc:
+#	doc.write(etree.tostring(targ_file, pretty_print = True,xml_declaration=True,))
+print '<?xml version="1.0" encoding="UTF-8"?>'
+serialize_xml(targ_file.getroot())
+sys.exit(0)
+#print "algo"
 #for m in measures:
 	#print etree.tostring(m)
