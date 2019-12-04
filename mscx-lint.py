@@ -18,6 +18,14 @@ def get_real_path(p):
 
 parser = argparse.ArgumentParser(description='Process some integers.')
 
+#subparsers = parser.add_subparsers(title = 'subcommands')
+
+# parser_cat = subparsers.add_parser('cat')
+# parser_cat.add_argument('src')
+# parser_cat.add_argument('dst')
+# parser_cat.add_argument('-s', '--skeleton')
+# parser_cat.set_defaults(target=cat)
+
 parser.add_argument('in_file', action="store")
 group = parser.add_mutually_exclusive_group()
 group.add_argument('--build-cache', '-b', action="store_true", dest="build_cache")
@@ -25,6 +33,7 @@ cache_group = parser.add_mutually_exclusive_group()
 #cache_group.add_argument('--cache-src', '-s', action="store_true", dest="cache_src")
 #parser.add_argument('--cache-src', required='--build_cache' in sys.argv, action="store", dest="cache_src")
 group.add_argument('-a', action="store_true", dest="apply_cache")
+group.add_argument('--cat', '-c', action="store_true", dest="opt_cat")
 group.add_argument('--print-test', '-p', action="store_true", dest="print_test")
 parser.add_argument('-o', action="store", dest="out_file")
 
@@ -267,7 +276,9 @@ def serialize_xml(et, indent=0):
 		print '</%s>' % et.tag
 	#if et.tail != None and len(et.tail.strip()) > 0:
 	#	print et.tail
-if opts.print_test:
+if opts.opt_cat:
+	pass
+elif opts.print_test:
 	print '<?xml version="1.0" encoding="UTF-8"?>'
 	current_score = etree.parse(in_file)
 	serialize_xml(current_score.getroot())

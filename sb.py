@@ -13,7 +13,7 @@ def get_targ_list(filename="targs.txt"):
 def load_targets(target_list):
 	global other_songs
 	for file in target_list:
-		root = etree.parse('/home/stel/Documents/MuseScore2/Scores/ICEFLU/Alex/newer/fixed/' + file)
+		root = etree.parse('/home/stel/Documents/MuseScore2/Scores/Oficiais/Alfredo/NovaEra/' + file)
 		other_songs.append(deepcopy(root.xpath('/museScore/Score/Staff')[0]))
 
 def get_last_measure(targ_file):
@@ -91,9 +91,12 @@ def add_44_timesig(score):
 
 def normalize_first_measure(score):
 	#pdb.set_trace()
-	global last_timesig
-	if not has_keysig(score):
+	global last_timesig, added_cks
+	if not has_keysig(score) and not added_cks:
 		add_c_keysig(score)
+		added_cks = True
+	else:
+		added_cks = False
 	if not has_timesig(score):
 	#	cur_timesig = get_measures(score)[0].xpath('TimeSig')[0]
 	#	if cur_timesig == None
@@ -116,10 +119,10 @@ def stringify_timesig(timesig):
 other_songs = []
 lines = get_targ_list()
 load_targets(lines)
-targ_file = etree.parse(r'/home/stel/Documents/MuseScore2/Scores/ICEFLU/Alex/newer/fixed/I_C.mscx')
-
-num_measures = len(get_measures(other_songs[0]))+1
-
+targ_file = etree.parse(r'/home/stel/Documents/MuseScore2/Scores/Oficiais/Alfredo/NovaEra/01_C.mscx')
+num_measures = len(targ_file.xpath('/museScore/Score/Staff/Measure'))+1
+#print len(tmp)
+#sys.exit(1)
 def serialize_xml(et, indent=0):
 	#create new tag
 	sys.stdout.write(('\t'*indent).encode('utf-8'))
@@ -157,12 +160,49 @@ def serialize_xml(et, indent=0):
 		print ('\t'*(indent)) + '</%s>' % et.tag
 	elif has_text:
 		print '</%s>' % et.tag
+added_cks = False
+spanner_ids = 1
+
+
+def solve_spans(measures):
+	global spanner_ids
+	spans = []
+	end_spans = []
+	#print measures
+	for m in measures:
+		spans += m.findall('.//Tie') + m.findall('.//Volta') + m.findall('.//Glissando')
+		end_spans += m.findall('.//endSpanner')
+		#print end_spans
+		#print len(m.findall('.//Volta'))
+		#sys.exit(0)
+		#for child in m:
+			#print child
+		#	if child.tag == "Volta" or child.tag == "Tie":
+		#		print "ok"
+				#sys.exit(1)
+	#print spans, end_spans
+	#sys.exit(0)
+	sys.stderr.write(str(spans + end_spans))
+	for span in spans:
+		span_id = span.attrib['id']
+		for end_span in end_spans:
+			if end_span.attrib['id'] == span_id:
+				sys.stderr.write('matched spans\n')
+				end_span.attrib['id'] = str(spanner_ids)
+				span.attrib['id'] = str(spanner_ids)
+				spanner_ids += 1
+
+
+
+solve_spans(targ_file.xpath('/museScore/Score/Staff/Measure'))
+#sys.exit(0)
 for cur_index in xrange(0, len(lines)):
 	cur_score = other_songs[cur_index]
 	normalize_last_measure(cur_score)
 
 	vbox = get_vbox(cur_score)
 	list_of_to_copy = get_measures(cur_score)
+	solve_spans(list_of_to_copy)
 	#print list_of_to_copy
 	#sys.exit(0)
 	last_measure_index = get_last_measure_index(targ_file)
