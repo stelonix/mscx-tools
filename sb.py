@@ -2,6 +2,12 @@ import lxml, sys, pdb
 from lxml import etree
 from copy import deepcopy
 
+
+class Score:
+	def __init__(self):
+		pass
+
+
 def get_targ_list(filename="targs.txt"):
 	fo = open(filename, "r+")
 	lines = fo.readlines()
@@ -13,7 +19,7 @@ def get_targ_list(filename="targs.txt"):
 def load_targets(target_list):
 	global other_songs
 	for file in target_list:
-		root = etree.parse('/home/stel/Documents/MuseScore2/Scores/Oficiais/Alfredo/NovaEra/' + file)
+		root = etree.parse('/home/stel/Documents/MuseScore2/Scores/Oficiais/Alfredo/' + file)
 		other_songs.append(deepcopy(root.xpath('/museScore/Score/Staff')[0]))
 
 def get_last_measure(targ_file):
@@ -34,18 +40,22 @@ def ends_with_hbox(measure):
 
 lbs = ["""<LayoutBreak>
           <subtype>line</subtype>
-          </LayoutBreak>""",
-		  """<LayoutBreak>
-          <subtype>section</subtype>
-          </LayoutBreak>"""]
+          # </LayoutBreak>"""]
+		  # """<LayoutBreak>
+          # <subtype>section</subtype>
+          # </LayoutBreak>"""]
 
 keysig = ["""<Clef>
           <concertClefType>G</concertClefType>
           <transposingClefType>G</transposingClefType>
           </Clef>""",
         """<KeySig>
-          <accidental>0</accidental>
-          </KeySig>"""]
+          <accidental>0</accidental><visible>0</visible>
+          </KeySig>""",
+		"""<Segment>
+          <leadingSpace>0</leadingSpace>
+          <trailingSpace>-0.6</trailingSpace>
+          </Segment>"""]
 
 timesig44 = ["""<TimeSig>
           <visible>0</visible>
@@ -59,10 +69,10 @@ timesig44 = ["""<TimeSig>
           </Segment>"""]
 
 last_timesig = '44'
-def add_lbreaks(measure):
+def add_lbreaks(element):
 	global lbs
-	measure.insert(2, etree.fromstring(lbs[0]))
-	measure.insert(2, etree.fromstring(lbs[1]))
+	element.insert(2, etree.fromstring(lbs[0]))
+	#element.insert(2, etree.fromstring(lbs[1]))
 
 def get_vbox(score):
 	return score.xpath('/Staff/VBox')[0]
@@ -81,6 +91,7 @@ def has_timesig(score):
 
 def add_c_keysig(score):
 	ms = get_measures(score)
+	ms[0].insert(2, etree.fromstring(keysig[2]))
 	ms[0].insert(2, etree.fromstring(keysig[1]))
 	ms[0].insert(2, etree.fromstring(keysig[0]))
 
@@ -98,11 +109,6 @@ def normalize_first_measure(score):
 	else:
 		added_cks = False
 	if not has_timesig(score):
-	#	cur_timesig = get_measures(score)[0].xpath('TimeSig')[0]
-	#	if cur_timesig == None
-	#	cur_timesig = stringify_timesig()
-	#	if cur_timesig != last_timesig:
-	#	last_timesig = cur_timesig
 		add_44_timesig(score)
 
 def normalize_last_measure(targ_score):
@@ -114,12 +120,16 @@ def normalize_last_measure(targ_score):
 		targ = last_measure.xpath('/HBox')
 	add_lbreaks(targ)
 
+def add_end_breaks(element):
+	remove_lbreaks(element.parent())
+	add_lbreaks(element)
+
 def stringify_timesig(timesig):
 	return timesig.xpath('sigN').text + timesig.xpath('sigD').text
 other_songs = []
 lines = get_targ_list()
 load_targets(lines)
-targ_file = etree.parse(r'/home/stel/Documents/MuseScore2/Scores/Oficiais/Alfredo/NovaEra/01_C.mscx')
+targ_file = etree.parse(r'/home/stel/Documents/MuseScore2/Scores/Oficiais/Alfredo/023_Gm.mscx')
 num_measures = len(targ_file.xpath('/museScore/Score/Staff/Measure'))+1
 #print len(tmp)
 #sys.exit(1)
@@ -168,20 +178,12 @@ def solve_spans(measures):
 	global spanner_ids
 	spans = []
 	end_spans = []
+	slurs = []
 	#print measures
 	for m in measures:
 		spans += m.findall('.//Tie') + m.findall('.//Volta') + m.findall('.//Glissando')
+		slurs += m.findall('.//Slur')
 		end_spans += m.findall('.//endSpanner')
-		#print end_spans
-		#print len(m.findall('.//Volta'))
-		#sys.exit(0)
-		#for child in m:
-			#print child
-		#	if child.tag == "Volta" or child.tag == "Tie":
-		#		print "ok"
-				#sys.exit(1)
-	#print spans, end_spans
-	#sys.exit(0)
 	sys.stderr.write(str(spans + end_spans))
 	for span in spans:
 		span_id = span.attrib['id']
@@ -196,32 +198,28 @@ def solve_spans(measures):
 
 solve_spans(targ_file.xpath('/museScore/Score/Staff/Measure'))
 #sys.exit(0)
+
 for cur_index in xrange(0, len(lines)):
 	cur_score = other_songs[cur_index]
-	normalize_last_measure(cur_score)
 
-	vbox = get_vbox(cur_score)
-	list_of_to_copy = get_measures(cur_score)
+	#vbox = get_vbox(cur_score)
+	list_of_to_copy = cur_score.getchildren()#get_measures(cur_score)
 	solve_spans(list_of_to_copy)
-	#print list_of_to_copy
-	#sys.exit(0)
-	last_measure_index = get_last_measure_index(targ_file)
+
+	#last_measure_index = get_last_measure_index(targ_file)
 
 	normalize_first_measure(cur_score)
 
-	targ_file.xpath('/museScore/Score/Staff')[0].insert(last_measure_index+1, vbox)
-	#targ_file.xpath('/museScore/Score/Staff')[0].insert(last_measure_index, vbox)
-	last_measure_index += 1
-	for measure in list_of_to_copy:
-
-		#measure["number"] = str(nextm)
-		#targ_file.xpath('/museScore/Score/Staff')[0]
-		measure.attrib['number'] = str(num_measures)
-		targ_file.xpath('/museScore/Score/Staff')[0].insert(last_measure_index+1, measure)
-		last_measure_index = get_last_measure_index(targ_file)
-		num_measures += 1
-
-	#measures = targ_file.xpath('/museScore/Score/Staff/Measure')
+	for el in reversed(list_of_to_copy):
+		if el.tag == 'Measure' or el.tag == 'HBox':
+			add_lbreaks(el)
+			break
+	for el in list_of_to_copy:
+		c = deepcopy(el)
+		if c.tag == 'Measure':
+			c.attrib['number'] = str(num_measures)
+			num_measures += 1
+		targ_file.xpath('/museScore/Score/Staff')[0].append(c)
 
 	#left_over -= len(deepcopy(lines)[len(lines[:10]):][:10])
 	#if cur_index == 8:
