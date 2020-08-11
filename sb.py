@@ -3,9 +3,7 @@ from lxml import etree
 from copy import deepcopy
 
 
-class Score:
-	def __init__(self):
-		pass
+
 
 
 def get_targ_list(filename="targs.txt"):
@@ -19,7 +17,7 @@ def get_targ_list(filename="targs.txt"):
 def load_targets(target_list):
 	global other_songs
 	for file in target_list:
-		root = etree.parse('/home/stel/Documents/MuseScore2/Scores/Oficiais/Alfredo/' + file)
+		root = etree.parse(file)
 		other_songs.append(deepcopy(root.xpath('/museScore/Score/Staff')[0]))
 
 def get_last_measure(targ_file):
@@ -129,7 +127,7 @@ def stringify_timesig(timesig):
 other_songs = []
 lines = get_targ_list()
 load_targets(lines)
-targ_file = etree.parse(r'/home/stel/Documents/MuseScore2/Scores/Oficiais/Alfredo/023_Gm.mscx')
+targ_file = etree.parse(r'/mnt/c/Users/maria/mscx-tools/scores/md/04_Gm.mscx')
 num_measures = len(targ_file.xpath('/museScore/Score/Staff/Measure'))+1
 #print len(tmp)
 #sys.exit(1)
@@ -171,8 +169,7 @@ def serialize_xml(et, indent=0):
 	elif has_text:
 		print '</%s>' % et.tag
 added_cks = False
-spanner_ids = 1
-
+spanner_ids = 2
 
 def solve_spans(measures):
 	global spanner_ids
@@ -184,15 +181,20 @@ def solve_spans(measures):
 		spans += m.findall('.//Tie') + m.findall('.//Volta') + m.findall('.//Glissando')
 		slurs += m.findall('.//Slur')
 		end_spans += m.findall('.//endSpanner')
-	sys.stderr.write(str(spans + end_spans))
-	for span in spans:
-		span_id = span.attrib['id']
-		for end_span in end_spans:
-			if end_span.attrib['id'] == span_id:
-				sys.stderr.write('matched spans\n')
-				end_span.attrib['id'] = str(spanner_ids)
-				span.attrib['id'] = str(spanner_ids)
-				spanner_ids += 1
+	#sys.stderr.write(str(spans + end_spans))
+	shared_ids = sorted(spans + slurs, key=lambda elem: int(elem.attrib['id']))
+	for span in shared_ids:
+		if span.tag == 'Slur':
+			span.attrib['id'] = str(spanner_ids)
+			spanner_ids += 1
+		else:
+			span_id = span.attrib['id']
+			for end_span in end_spans:
+				if end_span.attrib['id'] == span_id:
+					sys.stderr.write('matched spans\n')
+					end_span.attrib['id'] = str(spanner_ids)
+					span.attrib['id'] = str(spanner_ids)
+					spanner_ids += 1
 
 
 
@@ -204,6 +206,7 @@ for cur_index in xrange(0, len(lines)):
 
 	#vbox = get_vbox(cur_score)
 	list_of_to_copy = cur_score.getchildren()#get_measures(cur_score)
+	sys.stderr.write('\x1B[1;1m[SPANS]\x1B[1;0m ' + lines[cur_index] + '\n')
 	solve_spans(list_of_to_copy)
 
 	#last_measure_index = get_last_measure_index(targ_file)

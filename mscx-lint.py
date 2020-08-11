@@ -43,7 +43,10 @@ opts = parser.parse_args()
 in_file = get_real_path(opts.in_file)
 out_file = get_real_path(opts.out_file) if opts.out_file != None else "outfile.mscx"
 
-
+if os.path.isfile(out_file):
+	overwrite = input('File already exists. Overwrite? [Y]es [N]o\n')
+	if overwrite.lower() != 'y':
+		sys.exit(0)
 
 def get_targ_list(filename="targs.txt"):
 	fo = open(filename, "r+")
