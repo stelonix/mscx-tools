@@ -1,57 +1,100 @@
-def get_targ_list(filename="targs.txt"):
-	fo = open(filename, "r+")
-	lines = fo.readlines()
-	fo.close()
-	for x in range(len(lines)):
-		lines[x] = lines[x].strip()
-	return lines
+import lxml, sys, pdb, Util
+from lxml import etree
+from copy import deepcopy
+
+def solve_spans(measures, from_id):
+	spanner_ids = from_id
+	spans = []
+	end_spans = []
+	slurs = []
+	for m in measures:
+		spans += m.findall('.//Tie') + m.findall('.//Volta') + m.findall('.//Glissando')
+		slurs += m.findall('.//Slur')
+		end_spans += m.findall('.//endSpanner')
+	shared_ids = sorted(spans + slurs, key=lambda elem: int(elem.attrib['id']))
+	for span in shared_ids:
+		if span.tag == 'Slur':
+			span.attrib['id'] = str(spanner_ids)
+			spanner_ids += 1
+		else:
+			span_id = span.attrib['id']
+			for end_span in end_spans:
+				if end_span.attrib['id'] == span_id:
+					#sys.stderr.write('matched spans\n')
+					end_span.attrib['id'] = str(spanner_ids)
+					span.attrib['id'] = str(spanner_ids)
+					spanner_ids += 1
+	return spanner_ids
 
 class Score:
-	def __init__(self, targ_file):
+	def __init__(self, targ_file=None):
+		if targ_file != None:
+			self.load_score(targ_file)
+			self.highest_id = 2
+			self.calc_spans()
+			self.measure_number = len(self.tree.xpath('/museScore/Score/Staff/Measure'))+1
+			self.filename = targ_file
+
+	def get_staff(self):
 		pass
 
-	def get_last_measure(targ_file):
-	#pdb.set_trace()
-	return targ_file.xpath('/Staff/Measure')[-1]
+	def join_score(self, score):
+		list_of_to_copy = score.tree.xpath('/museScore/Score/Staff')[0].getchildren()
+		sys.stderr.write('\x1B[1;1m[SPANS]\x1B[1;0m ' + score.filename + '\n')
+		self.calc_spans(list_of_to_copy)
+		score.normalize_first_measure()
+		for el in reversed(list_of_to_copy):
+			if el.tag == 'Measure' or el.tag == 'HBox':
+				Util.add_lbreaks(el)
+				break
+		for el in list_of_to_copy:
+			c = deepcopy(el)
+			if c.tag == 'Measure':
+				c.attrib['number'] = str(self.measure_number)
+				self.measure_number += 1
+			self.tree.xpath('/museScore/Score/Staff')[0].append(c)
 
-	def get_last_measure_index(targ_file):
-		return targ_file.xpath('/museScore/Score/Staff')[0].index(targ_file.xpath('/museScore/Score/Staff/Measure')[-1])
+	def append_measure(self, measures):
+		measures.getchildren()
 
-	def get_vbox(score):
-		return score.xpath('/Staff/VBox')[0]
+	def calc_spans(self, new_data=None):
+		if new_data == None:
+			new_data = self.get_measures()
+		self.highest_id = solve_spans(new_data, self.highest_id)
 
-	def get_measures(score):
-		return score.xpath('/Staff/Measure')
-
-	def has_keysig(score):
+	def load_score(self, targ_file):
+		self.tree = etree.parse(targ_file)
+	
+	def get_last_measure(self):
 		#pdb.set_trace()
-		ms = get_measures(score)
+		return self.tree.xpath('/museScore/Score/Staff/Measure')[-1]
+
+	def get_vbox(self):
+		return self.tree.xpath('/museScore/Score/Staff/VBox')[0]
+
+	def get_measures(self):
+		return self.tree.xpath('/museScore/Score/Staff/Measure')
+
+	def has_keysig(self):
+		#pdb.set_trace()
+		ms = self.get_measures()
 		return len(ms[0].xpath('KeySig')) > 0
 
-	def has_timesig(score):
-		ms = get_measures(score)
+	def has_timesig(self):
+		ms = self.get_measures()
 		return len(ms[0].xpath('TimeSig')) > 0
-
-	def add_c_keysig(score):
-		ms = get_measures(score)
-		ms[0].insert(2, etree.fromstring(keysig[2]))
-		ms[0].insert(2, etree.fromstring(keysig[1]))
-		ms[0].insert(2, etree.fromstring(keysig[0]))
-
-	def add_44_timesig(score):
-		ms = get_measures(score)
-		ms[0].insert(2, etree.fromstring(timesig44[1]))
-		ms[0].insert(2, etree.fromstring(timesig44[0]))
-	def normalize_first_measure(score):
+	
+	def normalize_first_measure(self):
 		#pdb.set_trace()
-		global last_timesig, added_cks
-		if not has_keysig(score) and not added_cks:
-			add_c_keysig(score)
+		ms = self.get_measures()
+		global added_cks
+		if not self.has_keysig() and not added_cks:
+			Util.add_c_keysig(ms[0])
 			added_cks = True
 		else:
 			added_cks = False
-		if not has_timesig(score):
-			add_44_timesig(score)
+		if not self.has_timesig():
+			Util.add_44_timesig(ms[0])
 	
 class Measure:
 	def __init__(self):

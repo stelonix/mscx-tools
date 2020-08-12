@@ -1,6 +1,8 @@
+import lxml, sys
+from lxml import etree
 
 class MscxSerializer:
-	def serialize_xml(et, indent=0):
+	def serialize(self, et, indent=0):
 		#create new tag
 		sys.stdout.write(('\t'*indent).encode('utf-8'))
 		#print 'lol'
@@ -32,7 +34,7 @@ class MscxSerializer:
 			if element.tag == 'text':
 				print ('\t'*(indent + 1)) + etree.tostring(element).strip()
 			else:
-				serialize_xml(element, indent + 1)
+				self.serialize(element, indent + 1)
 		if has_child:
 			print ('\t'*(indent)) + '</%s>' % et.tag
 		elif has_text:

@@ -24,9 +24,6 @@ def get_last_measure(targ_file):
 	#pdb.set_trace()
 	return targ_file.xpath('/Staff/Measure')[-1]
 
-def get_last_measure_index(targ_file):
-	return targ_file.xpath('/museScore/Score/Staff')[0].index(targ_file.xpath('/museScore/Score/Staff/Measure')[-1])
-
 def remove_lbreaks(measure):
 	#if not len(last_measure.xpath('/LayoutBreak')) == 0:
 	for bad in measure.xpath("/LayoutBreak"):
@@ -176,12 +173,10 @@ def solve_spans(measures):
 	spans = []
 	end_spans = []
 	slurs = []
-	#print measures
 	for m in measures:
 		spans += m.findall('.//Tie') + m.findall('.//Volta') + m.findall('.//Glissando')
 		slurs += m.findall('.//Slur')
 		end_spans += m.findall('.//endSpanner')
-	#sys.stderr.write(str(spans + end_spans))
 	shared_ids = sorted(spans + slurs, key=lambda elem: int(elem.attrib['id']))
 	for span in shared_ids:
 		if span.tag == 'Slur':
