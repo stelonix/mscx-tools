@@ -48,14 +48,6 @@ if os.path.isfile(out_file):
 	if overwrite.lower() != 'y':
 		sys.exit(0)
 
-def get_targ_list(filename="targs.txt"):
-	fo = open(filename, "r+")
-	lines = fo.readlines()
-	fo.close()
-	for x in range(len(lines)):
-		lines[x] = lines[x].strip()
-	return lines
-
 def load_target(target):
 	return (target, deepcopy(target.xpath('/museScore/Score/Staff')[0]))
 
@@ -63,53 +55,6 @@ def load_targets(target_list):
 	global other_songs
 	root = etree.parse('/home/stel/Documents/MuseScore2/Scores/Justiceiro/Remake/Junho/' + file)
 	other_songs.append(load_target(root))
-
-def get_last_measure(targ_file):
-	return targ_file.xpath('/Staff/Measure')[-1]
-
-def get_last_measure_index(targ_file):
-	return targ_file.xpath('/museScore/Score/Staff')[0].index(targ_file.xpath('/museScore/Score/Staff/Measure')[-1])
-
-def remove_lbreaks(measure):
-	for bad in measure.xpath("/LayoutBreak"):
-		bad.getparent().remove(bad)
-
-def ends_with_hbox(measure):
-	return not len(last_measure.xpath('/HBox')) == 0
-
-lbs = ["""<LayoutBreak>
-          <subtype>line</subtype>
-          </LayoutBreak>""",
-		  """<LayoutBreak>
-          <subtype>section</subtype>
-          </LayoutBreak>"""]
-
-keysig = ["""<Clef>
-          <concertClefType>G</concertClefType>
-          <transposingClefType>G</transposingClefType>
-          </Clef>""",
-        """<KeySig>
-          <accidental>0</accidental>
-          </KeySig>"""]
-def add_lbreaks(measure):
-	global lbs
-	measure.insert(2, etree.fromstring(lbs[0]))
-	measure.insert(2, etree.fromstring(lbs[1]))
-
-def get_vbox(score):
-	return score[cur_index].xpath('/Staff/VBox')[0]
-
-def get_measures(score):
-	return score.xpath('/Staff/Measure')
-
-def has_keysing(score):
-	ms = get_measures(score)
-	return len(ms[0].xpath('/KeySig')) > 0
-
-def add_c_keysig(score):
-	ms = get_measures(score)
-	ms[0].insert(2, etree.fromstring(keysig[1]))
-	ms[0].insert(2, etree.fromstring(keysig[0]))
 
 def can_has_beam(chord):
 	#dt = chord.xpath("/durationType").text()
@@ -386,35 +331,6 @@ elif opts.apply_cache:
 			#except:
 			#	print "fail"
 				#print pretty(Chords)
-		#print 'saving'
-		#new_tostring = etree.tostring(xml_file,pretty_print=True,xml_declaration=True, encoding='UTF-8')
-		#after_pretty = objectify.fromstring(new_tostring)
-		#print after_pretty[0].getroot()
-		#after_pretty = etree.fromstring(new_tostring)
-		#h = after_pretty.xpath('/museScore')[0]
-		#lines_to_correct = []
-		#final_lines = []
-		#for text in h.xpath('Score/Staff/VBox/Text'):
-			#print etree.tostring(text.xpath('text')[0])
-			#init_src = text.text.sourceline
-
-			#lfdsf
-			#print etree.tostring(text.xpath('text')[0]).replace('\n','')
-			# endline_num = init_src + (len(etree.tostring(text.text).strip().split()) - 1)
-			# if text.Style.text == "Title":
-			# 	lines_to_correct[0] = (init_src, endline_num)
-			# 	final_lines[0] = etree.tostring(text.xpath('text')[0])
-			# elif text.Style.text == "Subtitle":
-			# 	lines_to_correct[1] = (init_src, endline_num)
-			# 	final_lines[1] = etree.tostring(text.xpath('text')[0])
-		#splitted = new_tostring.split('\n')
-
-		#for i in xrange(endline_num-init_src):
-
-		#for line in xrange(len(splitted)):
-
-		#print init_src, endline_num
-		#sys.exit(0)
 		print 'opening out_file = %s' % (out_file)
 		old = os.dup(1)
 		os.close(1)
