@@ -55,6 +55,8 @@ timesig44 = ["""<TimeSig>
           </Segment>"""]
 
 def add_lbreaks(element):
+     if len(element.xpath('//LayoutBreak')) != 0:
+          return
      element.insert(2, etree.fromstring(lbs[0]))
 
 def add_c_keysig(measure):
@@ -93,7 +95,7 @@ spellings = [
         'C♯♯',   'G♯♯',  'D♯♯' , 'A♯♯',  'E♯♯',  'B♯♯'
     ]
 
-def harmony_to_chord(harmony, name, base=None):
+def harmony_to_note(harmony, name='', base=None):
      if base != None:
           name = name + '/' + spellings[base+1]
      return spellings[harmony+1] + str(name)

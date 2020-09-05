@@ -2,6 +2,17 @@ import lxml, sys, pdb, Util
 from lxml import etree
 from copy import deepcopy
 
+"""
+static const int spellings[] = {
+        bb  b   -   #  ##
+        0,  7, 14, 21, 28,      // C
+        2,  9, 16, 23, 30,      // D
+        4, 11, 18, 25, 32,      // E
+        -1,  6, 13, 20, 27,     // F
+        1,  8, 15, 22, 29,      // G
+        3, 10, 17, 24, 31,      // A
+        5, 12, 19, 26, 33,      // B
+    };"""
 def solve_spans(measures, from_id):
 	spanner_ids = from_id
 	spans = []
@@ -29,6 +40,7 @@ def solve_spans(measures, from_id):
 class Score:
 	def __init__(self, targ_file=None):
 		if targ_file != None:
+			self.added_cks = False
 			self.load_score(targ_file)
 			self.highest_id = 2
 			self.calc_spans()
@@ -38,13 +50,16 @@ class Score:
 	def get_staff(self):
 		pass
 
-	def join_score(self, score):
+	def join_score(self, score, normalize=True):
 		list_of_to_copy = score.tree.xpath('/museScore/Score/Staff')[0].getchildren()
 		sys.stderr.write('\x1B[1;1m[SPANS]\x1B[1;0m ' + score.filename + '\n')
 		self.calc_spans(list_of_to_copy)
-		score.normalize_first_measure()
+		if normalize:
+			score.normalize_first_measure()
 		for el in reversed(list_of_to_copy):
 			if el.tag == 'Measure' or el.tag == 'HBox':
+				#if el.tag == 'Measure':
+				#	sys.stderr.write('lbreak on measure %s\n' % el.attrib['number'])
 				Util.add_lbreaks(el)
 				break
 		for el in list_of_to_copy:
@@ -75,6 +90,8 @@ class Score:
 	def get_measures(self):
 		return self.tree.xpath('/museScore/Score/Staff/Measure')
 
+	### normalization functions ###
+
 	def has_keysig(self):
 		#pdb.set_trace()
 		ms = self.get_measures()
@@ -87,15 +104,16 @@ class Score:
 	def normalize_first_measure(self):
 		#pdb.set_trace()
 		ms = self.get_measures()
-		global added_cks
-		if not self.has_keysig() and not added_cks:
+		if not self.has_keysig() and not self.added_cks:
 			Util.add_c_keysig(ms[0])
-			added_cks = True
+			self.added_cks = True
 		else:
-			added_cks = False
+			self.added_cks = False
 		if not self.has_timesig():
 			Util.add_44_timesig(ms[0])
-	
+
+	### end normalizaion functions ###
+
 class Measure:
 	def __init__(self):
 		pass
